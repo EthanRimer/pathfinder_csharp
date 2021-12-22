@@ -3,12 +3,12 @@
 class Page {
     public string? title { get; set; }
     public string? link { get; set; }
-    public string[]? children { get; set; }
+    public List<string>? children { get; set; }
 }
 
 class Hierarchy {
-    public static string[] links { get; set; }
-    public static Dictionary<string, Page> pages { get; set; }
+    public static string[] links; 
+    public static Dictionary<string, Page> pages;
 }
 
 public class Pathfinder {
@@ -21,10 +21,10 @@ public class Pathfinder {
 
     public static void Main(string[] args) {
 
-        Hierarchy h = new Hierarchy();
-
         HtmlWeb web = new HtmlWeb();
         var htmlDoc = web.Load(rootPage);
+
+        visitedLinks.Add(rootPage);
 
         currentPage.link = rootPage;
 
@@ -33,7 +33,7 @@ public class Pathfinder {
             currentPage.title = pageTitle;
         }
 
-        visitedLinks.Add(rootPage);
+        currentPage.children = FindLinks(rootPage, htmlDoc);
     }
 
     public static string GetPageTitle(HtmlDocument doc) {
@@ -50,10 +50,39 @@ public class Pathfinder {
         return pageTitle;
     }
 
-    /*
-    public static string[] FindLinks(HtmlDocument doc) {
+    public static List<string> FindLinks(string rootPage, HtmlDocument doc) {
+        List<string> links = new List<string>();
 
-        return {""};
+        foreach(var node in doc.DocumentNode.SelectNodes("//a[@href]")) {
+            string link = node.Attributes["href"].Value;
+            if(link.StartsWith(rootPage) || link.StartsWith("/")) {
+                link = FormatLink(link);
+                if(ValidLink(link)) {
+
+                }
+            }
+        }
+
+        return links;
     }
-    */
+
+    public static string FormatLink(string link) {
+        if(link.StartsWith("/")) {
+            link = $"{rootPage}{link}";
+        }
+        if(link.EndsWith("/")) {
+            link = link.Remove(link.Length - 1);
+        }
+
+        return link;
+    }
+    public static bool ValidLink(string link) {
+        //Uri uri = new Uri(link);
+        if(link.Contains("#") || unvisitedLinks.Contains(link) || visitedLinks.Contains(link)) {
+
+            return false;
+        } 
+
+        return true;
+    }
 }
