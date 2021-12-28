@@ -1,4 +1,10 @@
-﻿using HtmlAgilityPack;
+﻿/**********
+ * TODO:
+ * 1. Switch from Hierarchy class to sorted collection
+ * 2. Serialize Hierarchy object to XML after populated
+ * 3. Make XSL file
+ *********/
+using HtmlAgilityPack;
 
 class Page {
     public string? title { get; set; }
@@ -14,7 +20,6 @@ class Hierarchy {
 public class Pathfinder {
 
     private static HashSet<string> visitedLinks = new HashSet<string>();
-    //private static HashSet<string> unvisitedLinks = new HashSet<string>();
     private static Queue<string> unvisitedLinks = new Queue<string>();
 
     public static string rootPage = @"https://www.peanuts.com";
@@ -44,7 +49,7 @@ public class Pathfinder {
         currentPage = new Page();
         
         while(unvisitedLinks.Count > 0) {
-            string link = unvisitedLinks.First();
+            string link = unvisitedLinks.Dequeue();
             if(visitedLinks.Contains(link)) {
                 visitedLinks.Remove(link);
 
@@ -65,7 +70,6 @@ public class Pathfinder {
             currentPage.children = FindLinks(link, htmlDoc);
             h.pages.Add(currentPage.link, currentPage);
 
-            unvisitedLinks.Dequeue();
             currentPage = new Page();
         }
 
@@ -115,7 +119,6 @@ public class Pathfinder {
         return link;
     }
     public static bool ValidLink(string link) {
-        //Uri uri = new Uri(link);
         if(link.Contains("#") || unvisitedLinks.Contains(link) || visitedLinks.Contains(link)) {
 
             return false;
