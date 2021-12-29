@@ -8,13 +8,27 @@ using HtmlAgilityPack;
 
 class Page {
     public string? title { get; set; }
-    public string link { get; set; }
+    public string link { get; }
     public List<string>? children { get; set; }
+
+    public Page(string link) {
+        this.link = link;
+    }
 }
 
 class Hierarchy {
     public string[] links { get; set; } 
     public Dictionary<string, Page> pages { get; set; }
+
+    public Hierarchy() {
+        pages = new Dictionary<string, Page>();
+        links = new string[pages.Count];
+    }
+
+    public Hierarchy(string[] links, Dictionary<string, Page> pages) {
+        this.links = links;
+        this.pages = pages;
+    }
 }
 
 public class Pathfinder {
@@ -22,68 +36,43 @@ public class Pathfinder {
     private static HashSet<string> visitedLinks = new HashSet<string>();
     private static Queue<string> unvisitedLinks = new Queue<string>();
 
-    public static string rootPage = @"https://www.peanuts.com";
+    public static string rootPage = "https://www.peanuts.com";
 
-    static Page currentPage = new Page();
+    static Page currentPage = new Page(rootPage);
     static Hierarchy h = new Hierarchy();
 
     public static void Main(string[] args) {
 
         HtmlWeb web = new HtmlWeb();
-        var htmlDoc = web.Load(rootPage);
-
-        visitedLinks.Add(rootPage);
-        Console.WriteLine($"Visited page {rootPage}");
-
-        currentPage.link = rootPage;
-
-        string pageTitle = GetPageTitle(htmlDoc);
-        if(pageTitle != "") {
-            currentPage.title = pageTitle;
-        }
-
-        currentPage.children = FindLinks(rootPage, htmlDoc);
-        h.pages = new Dictionary<string, Page>();
-        h.pages.Add(currentPage.link, currentPage);
-
-        currentPage = new Page();
+        unvisitedLinks.Enqueue(rootPage);
         
         while(unvisitedLinks.Count > 0) {
-            string link = unvisitedLinks.Dequeue();
-            if(visitedLinks.Contains(link)) {
-                visitedLinks.Remove(link);
 
-                continue;
-            }
+            currentPage = new Page(unvisitedLinks.Dequeue());
 
-            currentPage.link = link;
+            var htmlDoc = web.Load(currentPage.link);
+            visitedLinks.Add(currentPage.link);
+            Console.WriteLine($"Visited page: {currentPage.link}");
 
-            htmlDoc = web.Load(link);
-            visitedLinks.Add(link);
-            Console.WriteLine($"Visited page {link}");
+            string pageTitle = GetPageTitle(htmlDoc);
+            currentPage.title = pageTitle != "" ? pageTitle : "";
 
-            pageTitle = GetPageTitle(htmlDoc);
-            if(pageTitle != "") {
-                currentPage.title = pageTitle;
-            }
-
-            currentPage.children = FindLinks(link, htmlDoc);
+            currentPage.children = FindLinks(currentPage.link, htmlDoc);
             h.pages.Add(currentPage.link, currentPage);
-
-            currentPage = new Page();
         }
 
-        Console.WriteLine($"Found {visitedLinks.Count} total pages");
+        Console.WriteLine($"\n\nFound {visitedLinks.Count} total pages\n");
+
+        h.links = visitedLinks.ToArray();
+        Array.Sort(h.links);
     }
 
     public static string GetPageTitle(HtmlDocument doc) {
 
         string pageTitle = "";
         try {
-
             pageTitle = doc.DocumentNode.SelectSingleNode("//head/title").InnerText;
         } catch(System.NullReferenceException) {
-
             pageTitle = "";
         }
 
@@ -91,16 +80,22 @@ public class Pathfinder {
     }
 
     public static List<string> FindLinks(string rootPage, HtmlDocument doc) {
+
         List<string> links = new List<string>();
 
         foreach(var node in doc.DocumentNode.SelectNodes("//a[@href]")) {
+
             string link = node.Attributes["href"].Value;
+
             if(link.StartsWith(rootPage) || link.StartsWith("/")) {
+
                 link = FormatLink(link);
+
                 if(ValidLink(link)) {
+
                     links.Add(link);
                     unvisitedLinks.Enqueue(link);
-                    Console.WriteLine($"Found page {link}");
+                    Console.WriteLine($"Found page: {link}");
                 }
             }
         }
@@ -118,12 +113,13 @@ public class Pathfinder {
 
         return link;
     }
+
     public static bool ValidLink(string link) {
         if(link.Contains("#") || unvisitedLinks.Contains(link) || visitedLinks.Contains(link)) {
-
             return false;
         } 
 
         return true;
     }
 }
+
