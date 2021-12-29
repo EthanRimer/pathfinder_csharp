@@ -6,32 +6,28 @@
  *********/
 using HtmlAgilityPack;
 
-class Page {
-    public string? title { get; set; }
-    public string link { get; }
-    public List<string>? children { get; set; }
-
-    public Page(string link) {
-        this.link = link;
-    }
-}
-
-class Hierarchy {
-    public string[] links { get; set; } 
-    public Dictionary<string, Page> pages { get; set; }
-
-    public Hierarchy() {
-        pages = new Dictionary<string, Page>();
-        links = new string[pages.Count];
-    }
-
-    public Hierarchy(string[] links, Dictionary<string, Page> pages) {
-        this.links = links;
-        this.pages = pages;
-    }
-}
-
 public class Pathfinder {
+    public class Page {
+        public string? title { get; set; }
+        public string link { get; }
+        public List<string>? children { get; set; }
+
+        public Page(string link) {
+            this.link = link;
+        }
+
+        public Page() {}
+    }
+
+    public class Hierarchy {
+        public string[] links { get; set; } 
+        public Dictionary<string, Page> pages { get; set; }
+
+        public Hierarchy() {
+            pages = new Dictionary<string, Page>();
+            links = new string[pages.Count];
+        }
+    }
 
     private static HashSet<string> visitedLinks = new HashSet<string>();
     private static Queue<string> unvisitedLinks = new Queue<string>();
@@ -54,10 +50,9 @@ public class Pathfinder {
             visitedLinks.Add(currentPage.link);
             Console.WriteLine($"Visited page: {currentPage.link}");
 
-            string pageTitle = GetPageTitle(htmlDoc);
-            currentPage.title = pageTitle != "" ? pageTitle : "";
-
+            currentPage.title = GetPageTitle(htmlDoc);
             currentPage.children = FindLinks(currentPage.link, htmlDoc);
+
             h.pages.Add(currentPage.link, currentPage);
         }
 
@@ -65,18 +60,27 @@ public class Pathfinder {
 
         h.links = visitedLinks.ToArray();
         Array.Sort(h.links);
+
+        System.Xml.Serialization.XmlSerializer writer = 
+            new System.Xml.Serialization.XmlSerializer(typeof(Page[]));
+        System.IO.FileStream file = System.IO.File.Create("./hierarchy.xml");
+
+        /*
+        foreach(string link in h.links) {
+            Console.WriteLine($"{h.pages[link].title}\n{h.pages[link].link}\n");
+            writer.Serialize(file, h.pages[link]);
+        }
+        */
+        writer.Serialize(file, h.pages.Values.ToArray());
+        file.Close();
     }
 
     public static string GetPageTitle(HtmlDocument doc) {
-
-        string pageTitle = "";
         try {
-            pageTitle = doc.DocumentNode.SelectSingleNode("//head/title").InnerText;
+            return doc.DocumentNode.SelectSingleNode("//head/title").InnerText;
         } catch(System.NullReferenceException) {
-            pageTitle = "";
+            return "";
         }
-
-        return pageTitle;
     }
 
     public static List<string> FindLinks(string rootPage, HtmlDocument doc) {
@@ -115,7 +119,10 @@ public class Pathfinder {
     }
 
     public static bool ValidLink(string link) {
-        if(link.Contains("#") || unvisitedLinks.Contains(link) || visitedLinks.Contains(link)) {
+        if(link.Contains("#") 
+                || unvisitedLinks.Contains(link) 
+                || visitedLinks.Contains(link)) {
+
             return false;
         } 
 
