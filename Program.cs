@@ -9,7 +9,7 @@ using HtmlAgilityPack;
 public class Pathfinder {
     public class Page {
         public string? title { get; set; }
-        public string link { get; }
+        public string link { get; set; }
         public List<string>? children { get; set; }
 
         public Page(string link) {
@@ -65,12 +65,6 @@ public class Pathfinder {
             new System.Xml.Serialization.XmlSerializer(typeof(Page[]));
         System.IO.FileStream file = System.IO.File.Create("./hierarchy.xml");
 
-        /*
-        foreach(string link in h.links) {
-            Console.WriteLine($"{h.pages[link].title}\n{h.pages[link].link}\n");
-            writer.Serialize(file, h.pages[link]);
-        }
-        */
         writer.Serialize(file, h.pages.Values.ToArray());
         file.Close();
     }
