@@ -5,6 +5,8 @@
  * 3. Make XSL file
  *********/
 using HtmlAgilityPack;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Firefox;
 
 public class Pathfinder {
     public class Page {
@@ -37,6 +39,8 @@ public class Pathfinder {
     static Page currentPage = new Page(rootPage);
     static Hierarchy h = new Hierarchy();
 
+    static IWebDriver driver = new FirefoxDriver(@"./");
+
     public static void Main(string[] args) {
 
         HtmlWeb web = new HtmlWeb();
@@ -54,25 +58,20 @@ public class Pathfinder {
             currentPage.children = FindLinks(currentPage.link, htmlDoc);
 
             h.pages.Add(currentPage.link, currentPage);
+
+            driver.Navigate().GoToUrl(currentPage.link);
+            string path = CaptureScreenshot(currentPage.link);
+            Thread.Sleep(2000);
         }
+
+        driver.Quit();
 
         Console.WriteLine($"\n\nFound {visitedLinks.Count} total pages\n");
 
+        /*
         h.links = visitedLinks.ToArray();
         Array.Sort(h.links);
-
-        System.Xml.Serialization.XmlSerializer writer = 
-            new System.Xml.Serialization.XmlSerializer(typeof(Page[]));
-        System.IO.FileStream file = System.IO.File.Create("./hierarchy.xml");
-
-        /*
-        foreach(string link in h.links) {
-            Console.WriteLine($"{h.pages[link].title}\n{h.pages[link].link}\n");
-            writer.Serialize(file, h.pages[link]);
-        }
         */
-        writer.Serialize(file, h.pages.Values.ToArray());
-        file.Close();
     }
 
     public static string GetPageTitle(HtmlDocument doc) {
@@ -127,6 +126,14 @@ public class Pathfinder {
         } 
 
         return true;
+    }
+
+    public static string CaptureScreenshot(string link) {
+        string screenshotPath = $"./screens/screen_{visitedLinks.Count}.png";
+        Screenshot ss = ((ITakesScreenshot)driver).GetScreenshot();
+        ss.SaveAsFile(screenshotPath, ScreenshotImageFormat.Png);
+
+        return screenshotPath;
     }
 }
 
