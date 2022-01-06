@@ -34,7 +34,7 @@ public class Pathfinder {
     private static HashSet<string> visitedLinks = new HashSet<string>();
     private static Queue<string> unvisitedLinks = new Queue<string>();
 
-    public static string rootPage = "https://www.peanuts.com";
+    public static string rootPage = "https://onrealm.t.ac.st";
 
     static Page currentPage = new Page(rootPage);
     static Hierarchy h = new Hierarchy();
@@ -43,9 +43,23 @@ public class Pathfinder {
 
     public static void Main(string[] args) {
 
-        HtmlWeb web = new HtmlWeb();
-        unvisitedLinks.Enqueue(rootPage);
+        driver.Navigate().GoToUrl(rootPage);
+        driver.FindElement(By.Id("emailAddress")).SendKeys("anneconley@example.org");
+        driver.FindElement(By.Id("password")).SendKeys("RealmAcs#2018");
+        driver.FindElement(By.Id("signInButton")).Click();
         
+        Thread.Sleep(750);
+        driver.FindElement(By.Id("siteList")).Click();
+        Thread.Sleep(500);
+        driver.FindElement(By.XPath("//*[@id='siteDialog']/div[1]/ul/div/li[26]")).Click();
+        Thread.Sleep(500);
+        driver.FindElement(By.Id("selectSite")).Click();
+        Thread.Sleep(500);
+
+        FindLinks(rootPage);
+        //driver.FindElement(By.XPath("//*[@id='nav-panel']/div[4]/a[1]"));
+        
+        /*
         while(unvisitedLinks.Count > 0) {
 
             currentPage = new Page(unvisitedLinks.Dequeue());
@@ -63,6 +77,7 @@ public class Pathfinder {
             string path = CaptureScreenshot(currentPage.link);
             Thread.Sleep(2000);
         }
+        */
 
         driver.Quit();
 
@@ -82,12 +97,13 @@ public class Pathfinder {
         }
     }
 
-    public static List<string> FindLinks(string rootPage, HtmlDocument doc) {
+    public static IReadOnlyList<IWebElement> FindLinks(string rootPage) {
 
-        List<string> links = new List<string>();
+        IReadOnlyList<IWebElement> links = driver.FindElements(By.XPath("//a[@href]"));
 
-        foreach(var node in doc.DocumentNode.SelectNodes("//a[@href]")) {
-
+        foreach(IWebElement link in links) {
+            Console.WriteLine(link.Text);
+            /*
             string link = node.Attributes["href"].Value;
 
             if(link.StartsWith(rootPage) || link.StartsWith("/")) {
@@ -101,6 +117,7 @@ public class Pathfinder {
                     Console.WriteLine($"Found page: {link}");
                 }
             }
+            */
         }
 
         return links;
