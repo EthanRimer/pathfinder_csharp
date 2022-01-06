@@ -40,6 +40,7 @@ public class Pathfinder {
     static Hierarchy h = new Hierarchy();
 
     static IWebDriver driver = new FirefoxDriver(@"./");
+    static HtmlDocument htmlDoc = new HtmlDocument();
 
     public static void Main(string[] args) {
 
@@ -56,8 +57,9 @@ public class Pathfinder {
         driver.FindElement(By.Id("selectSite")).Click();
         Thread.Sleep(500);
 
-        FindLinks(rootPage);
-        //driver.FindElement(By.XPath("//*[@id='nav-panel']/div[4]/a[1]"));
+        htmlDoc.LoadHtml(driver.PageSource);
+        List<string> links = FindLinks(rootPage, htmlDoc);
+        Console.WriteLine($"\n\nFound {links.Count} total pages\n");
         
         /*
         while(unvisitedLinks.Count > 0) {
@@ -81,7 +83,7 @@ public class Pathfinder {
 
         driver.Quit();
 
-        Console.WriteLine($"\n\nFound {visitedLinks.Count} total pages\n");
+        //Console.WriteLine($"\n\nFound {visitedLinks.Count} total pages\n");
 
         /*
         h.links = visitedLinks.ToArray();
@@ -97,13 +99,12 @@ public class Pathfinder {
         }
     }
 
-    public static IReadOnlyList<IWebElement> FindLinks(string rootPage) {
+    public static List<string> FindLinks(string rootPage, HtmlDocument doc) {
 
-        IReadOnlyList<IWebElement> links = driver.FindElements(By.XPath("//a[@href]"));
+        List<string> links = new List<string>();
 
-        foreach(IWebElement link in links) {
-            Console.WriteLine(link.Text);
-            /*
+        foreach(var node in doc.DocumentNode.SelectNodes("//a[@href]")) {
+
             string link = node.Attributes["href"].Value;
 
             if(link.StartsWith(rootPage) || link.StartsWith("/")) {
@@ -117,7 +118,6 @@ public class Pathfinder {
                     Console.WriteLine($"Found page: {link}");
                 }
             }
-            */
         }
 
         return links;
