@@ -4,6 +4,9 @@
  * 2. Serialize Hierarchy object to XML after populated
  * 3. Make XSL file
  *********/
+
+using System.Text.RegularExpressions;
+
 using HtmlAgilityPack;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
@@ -33,6 +36,10 @@ public class Pathfinder {
 
     private static HashSet<string> visitedLinks = new HashSet<string>();
     private static Queue<string> unvisitedLinks = new Queue<string>();
+    private static HashSet<string> guidPages = new HashSet<string>();
+    private static Regex guidRegex 
+        = new Regex(@"[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}",
+                RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public static string rootPage = "https://onrealm.t.ac.st";
 
@@ -47,6 +54,11 @@ public class Pathfinder {
         unvisitedLinks.Enqueue(rootPage);
 
         while(unvisitedLinks.Count > 0) {
+            if(unvisitedLinks.Peek().Contains("Account/SignOut") 
+                    && unvisitedLinks.Count > 1) {
+                unvisitedLinks.Enqueue(unvisitedLinks.Dequeue());
+                continue;
+            }
 
             currentPage = new Page(unvisitedLinks.Dequeue());
 
@@ -60,13 +72,11 @@ public class Pathfinder {
 
             h.pages.Add(currentPage.link, currentPage);
 
-            //string path = CaptureScreenshot(currentPage.link);
+            Thread.Sleep(2000);
+            string path = CaptureScreenshot(currentPage.link);
             if(currentPage.link.EndsWith("Site/SignIn")) {
-                LogIn(false);
-            } else if(driver.Url.EndsWith("Account/Start")) {
-                LogIn(true);
-            }
-            Thread.Sleep(1000);
+                LogIn();
+            } 
         }
 
         driver.Quit();
@@ -79,28 +89,20 @@ public class Pathfinder {
         */
     }
 
-    public static void LogIn(bool signedOut) {
-        if(signedOut) {
-            driver.FindElement(By.LinkText("Sign In")).Click();
-            Thread.Sleep(50);
-            driver.FindElement(By.Id("SignInEmail")).SendKeys("anneconley@example.org");
-            driver.FindElement(By.Id("SignInPassword")).SendKeys("RealmAcs#2018");
-            driver.FindElement(By.CssSelector("input.button")).Click();
-        } else {
-            driver.FindElement(By.Id("emailAddress")).SendKeys("anneconley@example.org");
-            driver.FindElement(By.Id("password")).SendKeys("RealmAcs#2018");
-            driver.FindElement(By.Id("signInButton")).Click();
-            
-            Thread.Sleep(750);
-            driver.FindElement(By.Id("siteList")).Click();
-            Thread.Sleep(500);
-            driver.FindElement(By.XPath("//*[@id='siteDialog']/div[1]/ul/div/li[26]")).Click();
-            Thread.Sleep(500);
-            driver.FindElement(By.Id("selectSite")).Click();
-            Thread.Sleep(500);
+    public static void LogIn() {
+        driver.FindElement(By.Id("emailAddress")).SendKeys("anneconley@example.org");
+        driver.FindElement(By.Id("password")).SendKeys("RealmAcs#2018");
+        driver.FindElement(By.Id("signInButton")).Click();
+        
+        Thread.Sleep(750);
+        driver.FindElement(By.Id("siteList")).Click();
+        Thread.Sleep(500);
+        driver.FindElement(By.XPath("//*[@id='siteDialog']/div[1]/ul/div/li[26]")).Click();
+        Thread.Sleep(500);
+        driver.FindElement(By.Id("selectSite")).Click();
+        Thread.Sleep(500);
 
-            unvisitedLinks.Enqueue(driver.Url);
-        }
+        unvisitedLinks.Enqueue(driver.Url);
     }
 
     public static string GetPageTitle(HtmlDocument doc) {
@@ -121,12 +123,18 @@ public class Pathfinder {
 
             if(link.StartsWith(rootPage) || link.StartsWith("/")) {
 
+                bool isGuid = guidRegex.IsMatch(link);
+
                 link = FormatLink(link);
 
-                if(ValidLink(link)) {
+                if(ValidLink(link, isGuid)) {
 
                     links.Add(link);
-                    unvisitedLinks.Enqueue(link);
+                    if(isGuid) {
+                        guidPages.Add(guidRegex.Replace(link, ""));
+                    } else {
+                        unvisitedLinks.Enqueue(link);
+                    }
                     Console.WriteLine($"Found page: {link}");
                 }
             }
@@ -146,10 +154,12 @@ public class Pathfinder {
         return link;
     }
 
-    public static bool ValidLink(string link) {
+    public static bool ValidLink(string link, bool isGuid) {
         if(link.Contains("#") 
                 || unvisitedLinks.Contains(link) 
-                || visitedLinks.Contains(link)) {
+                || visitedLinks.Contains(link)
+                || guidPages.Contains(guidRegex.Replace(link, ""))
+                || link.Contains("Help/LMS")) { // This Page breaks the HTML parser
 
             return false;
         } 
