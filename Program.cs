@@ -44,20 +44,6 @@ public class Pathfinder {
 
     public static void Main(string[] args) {
 
-        /*
-        driver.Navigate().GoToUrl(rootPage);
-        driver.FindElement(By.Id("emailAddress")).SendKeys("anneconley@example.org");
-        driver.FindElement(By.Id("password")).SendKeys("RealmAcs#2018");
-        driver.FindElement(By.Id("signInButton")).Click();
-        
-        Thread.Sleep(750);
-        driver.FindElement(By.Id("siteList")).Click();
-        Thread.Sleep(500);
-        driver.FindElement(By.XPath("//*[@id='siteDialog']/div[1]/ul/div/li[26]")).Click();
-        Thread.Sleep(500);
-        driver.FindElement(By.Id("selectSite")).Click();
-        Thread.Sleep(500);
-        */
         unvisitedLinks.Enqueue(rootPage);
 
         while(unvisitedLinks.Count > 0) {
@@ -76,7 +62,9 @@ public class Pathfinder {
 
             //string path = CaptureScreenshot(currentPage.link);
             if(currentPage.link.EndsWith("Site/SignIn")) {
-                LogIn();
+                LogIn(false);
+            } else if(driver.Url.EndsWith("Account/Start")) {
+                LogIn(true);
             }
             Thread.Sleep(1000);
         }
@@ -91,32 +79,28 @@ public class Pathfinder {
         */
     }
 
-    public static void LogIn() {
+    public static void LogIn(bool signedOut) {
+        if(signedOut) {
+            driver.FindElement(By.LinkText("Sign In")).Click();
+            Thread.Sleep(50);
+            driver.FindElement(By.Id("SignInEmail")).SendKeys("anneconley@example.org");
+            driver.FindElement(By.Id("SignInPassword")).SendKeys("RealmAcs#2018");
+            driver.FindElement(By.CssSelector("input.button")).Click();
+        } else {
+            driver.FindElement(By.Id("emailAddress")).SendKeys("anneconley@example.org");
+            driver.FindElement(By.Id("password")).SendKeys("RealmAcs#2018");
+            driver.FindElement(By.Id("signInButton")).Click();
+            
+            Thread.Sleep(750);
+            driver.FindElement(By.Id("siteList")).Click();
+            Thread.Sleep(500);
+            driver.FindElement(By.XPath("//*[@id='siteDialog']/div[1]/ul/div/li[26]")).Click();
+            Thread.Sleep(500);
+            driver.FindElement(By.Id("selectSite")).Click();
+            Thread.Sleep(500);
 
-        /*
-        driver.Navigate().GoToUrl(rootPage);
-        visitedLinks.Add(currentPage.Link);
-        Console.WriteLine($"Visited page: {currentPage.link}");
-
-        currentPage.title = driver.Title;
-        htmlDoc.LoadHtml(driver.PageSource);
-        currentPage.children = FindLinks(currentPage.link, htmlDoc);
-
-        h.pages.Add(currentPage.link, currentPage);
-        */
-
-        driver.FindElement(By.Id("emailAddress")).SendKeys("anneconley@example.org");
-        driver.FindElement(By.Id("password")).SendKeys("RealmAcs#2018");
-        driver.FindElement(By.Id("signInButton")).Click();
-        
-        Thread.Sleep(750);
-        driver.FindElement(By.Id("siteList")).Click();
-        Thread.Sleep(500);
-        driver.FindElement(By.XPath("//*[@id='siteDialog']/div[1]/ul/div/li[26]")).Click();
-        Thread.Sleep(500);
-        driver.FindElement(By.Id("selectSite")).Click();
-        Thread.Sleep(500);
-        unvisitedLinks.Enqueue(driver.Url);
+            unvisitedLinks.Enqueue(driver.Url);
+        }
     }
 
     public static string GetPageTitle(HtmlDocument doc) {
