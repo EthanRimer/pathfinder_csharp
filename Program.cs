@@ -1,8 +1,7 @@
 ﻿/**********
  * TODO:
- * 1. Switch from Hierarchy class to sorted collection
- * 2. Serialize Hierarchy object to XML after populated
- * 3. Make XSL file
+ * 1. Serialize Hierarchy object to XML after populated
+ * 2. Make XSL file
  *********/
 
 using System.Text.RegularExpressions;
@@ -38,7 +37,7 @@ public class Pathfinder {
     private static Queue<string> unvisitedLinks = new Queue<string>();
     private static HashSet<string> guidPages = new HashSet<string>();
     private static Regex guidRegex 
-        = new Regex(@"[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}",
+        = new Regex(@"[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}",
                 RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public static string rootPage = "https://onrealm.t.ac.st";
@@ -53,30 +52,39 @@ public class Pathfinder {
 
         unvisitedLinks.Enqueue(rootPage);
 
-        while(unvisitedLinks.Count > 0) {
-            if(unvisitedLinks.Peek().Contains("Account/SignOut") 
-                    && unvisitedLinks.Count > 1) {
-                unvisitedLinks.Enqueue(unvisitedLinks.Dequeue());
-                continue;
+        try {
+            while(unvisitedLinks.Count > 0) {
+                if(unvisitedLinks.Peek().Contains("Account/SignOut") 
+                        && unvisitedLinks.Count > 1) {
+                    unvisitedLinks.Enqueue(unvisitedLinks.Dequeue());
+                    continue;
+                }
+
+                currentPage = new Page(unvisitedLinks.Dequeue());
+
+                driver.Navigate().GoToUrl(currentPage.link);
+                if(!driver.Url.StartsWith(rootPage)) {
+                    continue;
+                }
+                visitedLinks.Add(currentPage.link);
+                Console.WriteLine($"Visited page: {currentPage.link}");
+
+                htmlDoc.LoadHtml(driver.PageSource);
+                currentPage.title = driver.Title;
+                currentPage.children = FindLinks(currentPage.link, htmlDoc);
+
+                h.pages.Add(currentPage.link, currentPage);
+
+                Thread.Sleep(2000);
+                string path = CaptureScreenshot(currentPage.link);
+                if(currentPage.link.EndsWith("Site/SignIn")) {
+                    LogIn();
+                } 
             }
-
-            currentPage = new Page(unvisitedLinks.Dequeue());
-
-            driver.Navigate().GoToUrl(currentPage.link);
-            visitedLinks.Add(currentPage.link);
-            Console.WriteLine($"Visited page: {currentPage.link}");
-
-            htmlDoc.LoadHtml(driver.PageSource);
-            currentPage.title = driver.Title;
-            currentPage.children = FindLinks(currentPage.link, htmlDoc);
-
-            h.pages.Add(currentPage.link, currentPage);
-
-            Thread.Sleep(2000);
-            string path = CaptureScreenshot(currentPage.link);
-            if(currentPage.link.EndsWith("Site/SignIn")) {
-                LogIn();
-            } 
+        }
+        catch(Exception e) {
+            Console.WriteLine("Exception encountered: {0}\n\nLast link visited: {1}\n{2} Links visited\n\n", e, currentPage.link, visitedLinks.Count);
+            System.Environment.Exit(1);
         }
 
         driver.Quit();
