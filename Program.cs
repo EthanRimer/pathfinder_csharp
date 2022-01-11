@@ -52,39 +52,40 @@ public class Pathfinder {
 
         unvisitedLinks.Enqueue(rootPage);
 
-        try {
-            while(unvisitedLinks.Count > 0) {
-                if(unvisitedLinks.Peek().Contains("Account/SignOut") 
-                        && unvisitedLinks.Count > 1) {
-                    unvisitedLinks.Enqueue(unvisitedLinks.Dequeue());
-                    continue;
-                }
-
-                currentPage = new Page(unvisitedLinks.Dequeue());
-
-                driver.Navigate().GoToUrl(currentPage.link);
-                if(!driver.Url.StartsWith(rootPage)) {
-                    continue;
-                }
-                visitedLinks.Add(currentPage.link);
-                Console.WriteLine($"Visited page: {currentPage.link}");
-
-                htmlDoc.LoadHtml(driver.PageSource);
-                currentPage.title = driver.Title;
-                currentPage.children = FindLinks(currentPage.link, htmlDoc);
-
-                h.pages.Add(currentPage.link, currentPage);
-
-                Thread.Sleep(2000);
-                string path = CaptureScreenshot(currentPage.link);
-                if(currentPage.link.EndsWith("Site/SignIn")) {
-                    LogIn();
-                } 
+        while(unvisitedLinks.Count > 0) {
+            if(unvisitedLinks.Peek().Contains("Account/SignOut") 
+                    && unvisitedLinks.Count > 1) {
+                unvisitedLinks.Enqueue(unvisitedLinks.Dequeue());
+                continue;
             }
-        }
-        catch(Exception e) {
-            Console.WriteLine("Exception encountered: {0}\n\nLast link visited: {1}\n{2} Links visited\n\n", e, currentPage.link, visitedLinks.Count);
-            System.Environment.Exit(1);
+
+            currentPage = new Page(unvisitedLinks.Dequeue());
+
+            try {
+                driver.Navigate().GoToUrl(currentPage.link);
+            }
+            catch (OpenQA.Selenium.WebDriverException e) {
+                Console.WriteLine($"Exception {0} on page {1}.\nPushing to back of queue.", e, currentPage.link);
+                unvisitedLinks.Enqueue(currentPage.link);
+                continue;
+            }
+            if(!driver.Url.StartsWith(rootPage)) {
+                continue;
+            }
+            visitedLinks.Add(currentPage.link);
+            Console.WriteLine($"Visited page: {currentPage.link}");
+
+            htmlDoc.LoadHtml(driver.PageSource);
+            currentPage.title = driver.Title;
+            currentPage.children = FindLinks(currentPage.link, htmlDoc);
+
+            h.pages.Add(currentPage.link, currentPage);
+
+            Thread.Sleep(2000);
+            string path = CaptureScreenshot(currentPage.link);
+            if(currentPage.link.EndsWith("Site/SignIn")) {
+                LogIn();
+            } 
         }
 
         driver.Quit();
