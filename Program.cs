@@ -125,27 +125,33 @@ public class Pathfinder {
 
         List<string> links = new List<string>();
 
-        foreach(var node in doc.DocumentNode.SelectNodes("//a[@href]")) {
+        try {
+            foreach(var node in doc.DocumentNode.SelectNodes("//a[@href]")) {
 
-            string link = node.Attributes["href"].Value;
+                string link = node.Attributes["href"].Value;
 
-            if(link.StartsWith(rootPage) || link.StartsWith("/")) {
+                if(link.StartsWith(rootPage) || link.StartsWith("/")) {
 
-                bool isGuid = guidRegex.IsMatch(link);
+                    bool isGuid = guidRegex.IsMatch(link);
 
-                link = FormatLink(link);
+                    link = FormatLink(link);
 
-                if(ValidLink(link, isGuid)) {
+                    if(ValidLink(link, isGuid)) {
 
-                    links.Add(link);
-                    if(isGuid) {
-                        guidPages.Add(guidRegex.Replace(link, ""));
-                    } else {
-                        unvisitedLinks.Enqueue(link);
+                        links.Add(link);
+                        if(isGuid) {
+                            guidPages.Add(guidRegex.Replace(link, ""));
+                        } else {
+                            unvisitedLinks.Enqueue(link);
+                        }
+                        Console.WriteLine($"Found page: {link}");
                     }
-                    Console.WriteLine($"Found page: {link}");
                 }
             }
+
+        }
+        catch(System.NullReferenceException e) {
+            Console.WriteLine($"Exception in FindLinks: {0}", e);
         }
 
         return links;
@@ -167,7 +173,8 @@ public class Pathfinder {
                 || unvisitedLinks.Contains(link) 
                 || visitedLinks.Contains(link)
                 || guidPages.Contains(guidRegex.Replace(link, ""))
-                || link.Contains("Help/LMS")) { // This Page breaks the HTML parser
+                || link.Contains("Help/LMS") // This Page breaks the HTML parser
+                || link.EndsWith("DownloadImportBatchTemplate")) { // Downloads a CSV and breaks crawling
 
             return false;
         } 
