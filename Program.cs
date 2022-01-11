@@ -65,10 +65,11 @@ public class Pathfinder {
                 driver.Navigate().GoToUrl(currentPage.link);
             }
             catch (OpenQA.Selenium.WebDriverException e) {
-                Console.WriteLine($"Exception {0} on page {1}.\nPushing to back of queue.", e, currentPage.link);
+                Console.WriteLine($"Exception {e} on page {currentPage.link}.\nPushing to back of queue.");
                 unvisitedLinks.Enqueue(currentPage.link);
                 continue;
             }
+
             if(!driver.Url.StartsWith(rootPage)) {
                 continue;
             }
@@ -134,15 +135,18 @@ public class Pathfinder {
                 if(link.StartsWith(rootPage) || link.StartsWith("/")) {
 
                     bool isGuid = guidRegex.IsMatch(link);
+                    bool helpPage = link.Contains("/Help?");
 
                     link = FormatLink(link);
 
-                    if(ValidLink(link, isGuid)) {
+                    if(ValidLink(link, isGuid, helpPage)) {
 
                         links.Add(link);
                         if(isGuid) {
                             guidPages.Add(guidRegex.Replace(link, ""));
-                        } else {
+                        } else if(helpPage) {
+                            unvisitedLinks.Enqueue(link.Remove(link.IndexOf("?")));
+                        }else {
                             unvisitedLinks.Enqueue(link);
                         }
                         Console.WriteLine($"Found page: {link}");
@@ -169,16 +173,30 @@ public class Pathfinder {
         return link;
     }
 
-    public static bool ValidLink(string link, bool isGuid) {
-        if(link.Contains("#") 
-                || unvisitedLinks.Contains(link) 
-                || visitedLinks.Contains(link)
-                || guidPages.Contains(guidRegex.Replace(link, ""))
-                || link.Contains("Help/LMS") // This Page breaks the HTML parser
-                || link.EndsWith("DownloadImportBatchTemplate")) { // Downloads a CSV and breaks crawling
+    public static bool ValidLink(string link, bool isGuid, bool helpPage) {
 
+        // Only process one help page
+        if(helpPage) {
+            if(visitedLinks.Contains(link.Remove(link.IndexOf("?"))) 
+                    || unvisitedLinks.Contains(link.Remove(link.IndexOf("?")))) {
+               return false; 
+            }
+        }
+        // Only keep track of unique GUID pages
+        if(isGuid && guidPages.Contains(guidRegex.Replace(link, ""))) {
             return false;
         } 
+        // Check for breaking links
+        else if(link.Contains("Help/LMS") || link.EndsWith("DownloadImportBatchTemplate")) {
+            return false;
+        }
+        // Check if link has already been processed
+        else if(unvisitedLinks.Contains(link) || visitedLinks.Contains(link)) {
+            return false;
+        } 
+        else if(link.Contains("#")) {
+            return false;
+        }
 
         return true;
     }
