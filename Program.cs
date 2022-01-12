@@ -93,6 +93,13 @@ public class Pathfinder {
 
         Console.WriteLine($"\n\nFound {visitedLinks.Count} total pages\n");
 
+        StreamWriter sw = new StreamWriter("./links.csv");
+        foreach(string link in visitedLinks) {
+            Page p = h.pages[link];
+            sw.WriteLine($"{p.link},{p.title}");
+        }
+        sw.Close();
+
         /*
         h.links = visitedLinks.ToArray();
         Array.Sort(h.links);
