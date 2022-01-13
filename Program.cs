@@ -48,9 +48,12 @@ public class Pathfinder {
     static IWebDriver driver = new FirefoxDriver(@"./");
     static HtmlDocument htmlDoc = new HtmlDocument();
 
+    private static StreamWriter sw = new StreamWriter("./links.csv");
+
     public static void Main(string[] args) {
 
         unvisitedLinks.Enqueue(rootPage);
+        driver.Manage().Window.Maximize();
 
         while(unvisitedLinks.Count > 0) {
             if(unvisitedLinks.Peek().Contains("Account/SignOut") 
@@ -81,6 +84,7 @@ public class Pathfinder {
             currentPage.children = FindLinks(currentPage.link, htmlDoc);
 
             h.pages.Add(currentPage.link, currentPage);
+            sw.WriteLine($"{currentPage.link},{currentPage.title}");
 
             Thread.Sleep(2000);
             string path = CaptureScreenshot(currentPage.link);
@@ -89,16 +93,11 @@ public class Pathfinder {
             } 
         }
 
+        sw.Close();
+
         driver.Quit();
 
         Console.WriteLine($"\n\nFound {visitedLinks.Count} total pages\n");
-
-        StreamWriter sw = new StreamWriter("./links.csv");
-        foreach(string link in visitedLinks) {
-            Page p = h.pages[link];
-            sw.WriteLine($"{p.link},{p.title}");
-        }
-        sw.Close();
 
         /*
         h.links = visitedLinks.ToArray();
