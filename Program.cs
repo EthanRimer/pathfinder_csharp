@@ -1,9 +1,11 @@
 ﻿/**********
  * TODO:
- * 1. Switch from Hierarchy class to sorted collection
- * 2. Serialize Hierarchy object to XML after populated
- * 3. Make XSL file
+ * 1. Serialize Hierarchy object to XML after populated
+ * 2. Make XSL file
  *********/
+
+using System.Text.RegularExpressions;
+
 using HtmlAgilityPack;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Firefox;
@@ -33,36 +35,65 @@ public class Pathfinder {
 
     private static HashSet<string> visitedLinks = new HashSet<string>();
     private static Queue<string> unvisitedLinks = new Queue<string>();
+    private static HashSet<string> guidPages = new HashSet<string>();
+    private static Regex guidRegex 
+        = new Regex(@"[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}",
+                RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    public static string rootPage = "https://www.peanuts.com";
+    public static string rootPage = "https://onrealm.t.ac.st";
 
     static Page currentPage = new Page(rootPage);
     static Hierarchy h = new Hierarchy();
 
     static IWebDriver driver = new FirefoxDriver(@"./");
+    static HtmlDocument htmlDoc = new HtmlDocument();
+
+    private static StreamWriter sw = new StreamWriter("./links.csv");
 
     public static void Main(string[] args) {
 
-        HtmlWeb web = new HtmlWeb();
         unvisitedLinks.Enqueue(rootPage);
-        
+        driver.Manage().Window.Maximize();
+
         while(unvisitedLinks.Count > 0) {
+            if(unvisitedLinks.Peek().Contains("Account/SignOut") 
+                    && unvisitedLinks.Count > 1) {
+                unvisitedLinks.Enqueue(unvisitedLinks.Dequeue());
+                continue;
+            }
 
             currentPage = new Page(unvisitedLinks.Dequeue());
 
-            var htmlDoc = web.Load(currentPage.link);
+            try {
+                driver.Navigate().GoToUrl(currentPage.link);
+            }
+            catch (OpenQA.Selenium.WebDriverException e) {
+                Console.WriteLine($"Exception {e} on page {currentPage.link}.\nPushing to back of queue.");
+                unvisitedLinks.Enqueue(currentPage.link);
+                continue;
+            }
+
+            if(!driver.Url.StartsWith(rootPage)) {
+                continue;
+            }
             visitedLinks.Add(currentPage.link);
             Console.WriteLine($"Visited page: {currentPage.link}");
 
-            currentPage.title = GetPageTitle(htmlDoc);
+            htmlDoc.LoadHtml(driver.PageSource);
+            currentPage.title = driver.Title;
             currentPage.children = FindLinks(currentPage.link, htmlDoc);
 
             h.pages.Add(currentPage.link, currentPage);
+            sw.WriteLine($"{currentPage.link},{currentPage.title}");
 
-            driver.Navigate().GoToUrl(currentPage.link);
-            string path = CaptureScreenshot(currentPage.link);
             Thread.Sleep(2000);
+            string path = CaptureScreenshot(currentPage.link);
+            if(currentPage.link.EndsWith("Site/SignIn")) {
+                LogIn();
+            } 
         }
+
+        sw.Close();
 
         driver.Quit();
 
@@ -72,6 +103,22 @@ public class Pathfinder {
         h.links = visitedLinks.ToArray();
         Array.Sort(h.links);
         */
+    }
+
+    public static void LogIn() {
+        driver.FindElement(By.Id("emailAddress")).SendKeys("anneconley@example.org");
+        driver.FindElement(By.Id("password")).SendKeys("RealmAcs#2018");
+        driver.FindElement(By.Id("signInButton")).Click();
+        
+        Thread.Sleep(750);
+        driver.FindElement(By.Id("siteList")).Click();
+        Thread.Sleep(500);
+        driver.FindElement(By.XPath("//*[@id='siteDialog']/div[1]/ul/div/li[26]")).Click();
+        Thread.Sleep(500);
+        driver.FindElement(By.Id("selectSite")).Click();
+        Thread.Sleep(500);
+
+        unvisitedLinks.Enqueue(driver.Url);
     }
 
     public static string GetPageTitle(HtmlDocument doc) {
@@ -86,21 +133,36 @@ public class Pathfinder {
 
         List<string> links = new List<string>();
 
-        foreach(var node in doc.DocumentNode.SelectNodes("//a[@href]")) {
+        try {
+            foreach(var node in doc.DocumentNode.SelectNodes("//a[@href]")) {
 
-            string link = node.Attributes["href"].Value;
+                string link = node.Attributes["href"].Value;
 
-            if(link.StartsWith(rootPage) || link.StartsWith("/")) {
+                if(link.StartsWith(rootPage) || link.StartsWith("/")) {
 
-                link = FormatLink(link);
+                    bool isGuid = guidRegex.IsMatch(link);
+                    bool helpPage = link.Contains("/Help?");
 
-                if(ValidLink(link)) {
+                    link = FormatLink(link);
 
-                    links.Add(link);
-                    unvisitedLinks.Enqueue(link);
-                    Console.WriteLine($"Found page: {link}");
+                    if(ValidLink(link, isGuid, helpPage)) {
+
+                        links.Add(link);
+                        if(isGuid) {
+                            guidPages.Add(guidRegex.Replace(link, ""));
+                        } else if(helpPage) {
+                            unvisitedLinks.Enqueue(link.Remove(link.IndexOf("?")));
+                        }else {
+                            unvisitedLinks.Enqueue(link);
+                        }
+                        Console.WriteLine($"Found page: {link}");
+                    }
                 }
             }
+
+        }
+        catch(System.NullReferenceException e) {
+            Console.WriteLine($"Exception in FindLinks: {0}", e);
         }
 
         return links;
@@ -117,13 +179,30 @@ public class Pathfinder {
         return link;
     }
 
-    public static bool ValidLink(string link) {
-        if(link.Contains("#") 
-                || unvisitedLinks.Contains(link) 
-                || visitedLinks.Contains(link)) {
+    public static bool ValidLink(string link, bool isGuid, bool helpPage) {
 
+        // Only process one help page
+        if(helpPage) {
+            if(visitedLinks.Contains(link.Remove(link.IndexOf("?"))) 
+                    || unvisitedLinks.Contains(link.Remove(link.IndexOf("?")))) {
+               return false; 
+            }
+        }
+        // Only keep track of unique GUID pages
+        if(isGuid && guidPages.Contains(guidRegex.Replace(link, ""))) {
             return false;
         } 
+        // Check for breaking links
+        else if(link.Contains("Help/LMS") || link.EndsWith("DownloadImportBatchTemplate")) {
+            return false;
+        }
+        // Check if link has already been processed
+        else if(unvisitedLinks.Contains(link) || visitedLinks.Contains(link)) {
+            return false;
+        } 
+        else if(link.Contains("#")) {
+            return false;
+        }
 
         return true;
     }

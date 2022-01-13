@@ -1,6 +1,6 @@
 obj/
 bin/
 *.xml
-geckodriver
+geckodriver*
 screens/
 *.csv
