@@ -3,3 +3,4 @@ bin/
 *.xml
 geckodriver
 screens/
+*.csv
